@@ -1,0 +1,25 @@
+name: Build RebuiltTux ISO
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y xorriso grub-pc-bin grub-efi-amd64-bin
+
+      - name: Build ISO
+        run: |
+          chmod +x ./build/build-iso.sh
+          ./build/build-iso.sh
