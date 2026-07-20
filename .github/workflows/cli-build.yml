@@ -45,11 +45,11 @@ jobs:
             echo "Downloading kernel from ${{ github.event.inputs.kernel_url }}"
             curl -fsSL -o "$KERNEL_TARGET" "${{ github.event.inputs.kernel_url }}"
           else
-            # try common kernel paths
+            # try common kernel paths (use sudo if needed)
             if [ -f /boot/vmlinuz-$(uname -r) ]; then
-              cp -v /boot/vmlinuz-$(uname -r) "$KERNEL_TARGET"
+              sudo cp -v /boot/vmlinuz-$(uname -r) "$KERNEL_TARGET" && sudo chown runner "$KERNEL_TARGET" || true
             elif [ -f /boot/vmlinuz ]; then
-              cp -v /boot/vmlinuz "$KERNEL_TARGET"
+              sudo cp -v /boot/vmlinuz "$KERNEL_TARGET" && sudo chown runner "$KERNEL_TARGET" || true
             else
               echo "No kernel found on runner and no kernel_url supplied." >&2
               exit 1
