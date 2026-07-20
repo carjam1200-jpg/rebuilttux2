@@ -14,6 +14,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install build tools
+        run: |
+          sudo apt update
+          sudo apt install -y nasm xorriso grub-pc-bin
+
       - name: Prepare build script
         run: chmod +x build/build-iso.sh
 
