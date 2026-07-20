@@ -1,0 +1,5 @@
+This is an additional placeholder ISO file for RebuiltTux 2 (shortcut).
+
+It is NOT bootable. Replace with a real ISO produced by running build/build-iso.sh on a Linux host with grub-mkrescue and a kernel at build/work/iso/boot/vmlinuz.
+
+Purpose: quick-access placeholder in the repository root to match project layout expectations. Remove or replace when you have a real ISO.
