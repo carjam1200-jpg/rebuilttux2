@@ -43,17 +43,25 @@ jobs:
           KERNEL_TARGET=build/work/iso/boot/vmlinuz
           if [ -n "${{ github.event.inputs.kernel_url }}" ]; then
             echo "Downloading kernel from ${{ github.event.inputs.kernel_url }}"
-            curl -fsSL -o "$KERNEL_TARGET" "${{ github.event.inputs.kernel_url }}"
+            curl -fsSL -o "$KERNEL_TARGET" "${{ github.event.inputs.kernel_url }}" || wget -q -O "$KERNEL_TARGET" "${{ github.event.inputs.kernel_url }}"
           else
-            # try common kernel paths (use sudo if needed)
-            if [ -f /boot/vmlinuz-$(uname -r) ]; then
-              sudo cp -v /boot/vmlinuz-$(uname -r) "$KERNEL_TARGET" && sudo chown runner "$KERNEL_TARGET" || true
-            elif [ -f /boot/vmlinuz ]; then
-              sudo cp -v /boot/vmlinuz "$KERNEL_TARGET" && sudo chown runner "$KERNEL_TARGET" || true
+            # Try kernel from runner; if permission denied, fallback to downloading one
+            if [ -f /boot/vmlinuz-$(uname -r) ] && sudo cp -v /boot/vmlinuz-$(uname -r) "$KERNEL_TARGET" 2>/dev/null; then
+              echo "Copied kernel from /boot"
+            elif [ -f /boot/vmlinuz ] && sudo cp -v /boot/vmlinuz "$KERNEL_TARGET" 2>/dev/null; then
+              echo "Copied kernel from /boot"
             else
-              echo "No kernel found on runner and no kernel_url supplied." >&2
-              exit 1
+              # Fallback: download a generic kernel
+              echo "No local kernel accessible; downloading generic kernel from Ubuntu repo..."
+              curl -fsSL -o "$KERNEL_TARGET" https://kernel.ubuntu.com/~kernel-ppa/mainline/v6.8/amd64/linux-image-6.8.0-060800-generic_6.8.0-060800.202402061633_amd64.deb 2>/dev/null || \
+              wget -q -O "$KERNEL_TARGET.deb" https://kernel.ubuntu.com/~kernel-ppa/mainline/v6.8/amd64/linux-image-6.8.0-060800-generic_6.8.0-060800.202402061633_amd64.deb 2>/dev/null && \
+              ar x "$KERNEL_TARGET.deb" data.tar.xz && tar -xf data.tar.xz -C / && cp /boot/vmlinuz-6.8.0-060800-generic "$KERNEL_TARGET" || \
+              echo "Could not download kernel. Please pass --kernel with a URL."
             fi
+          fi
+          if [ ! -f "$KERNEL_TARGET" ]; then
+            echo "No kernel available for ISO. Aborting." >&2
+            exit 1
           fi
           echo "kernel_path=$KERNEL_TARGET" >> $GITHUB_OUTPUT
 
