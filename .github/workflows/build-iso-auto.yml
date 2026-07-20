@@ -88,7 +88,7 @@ jobs:
       - name: Run build helper
         run: |
           # Run the repo's helper to assemble initramfs and build the ISO
-          sudo ./build/make_iso_linux.sh --kernel "${{ steps.kernel.outputs.kernel_path }}" ${ { github.event.inputs.test_qemu == 'true' && echo '--test-qemu' || echo '' } }
+          sudo ./build/make_iso_linux.sh --kernel "${{ steps.kernel.outputs.kernel_path }}"
         shell: bash
 
       - name: Upload ISO artifact
