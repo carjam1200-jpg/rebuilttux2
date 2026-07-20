@@ -1,0 +1,27 @@
+name: Build RebuiltTux 2 ISO
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare build script
+        run: chmod +x build/build-iso.sh
+
+      - name: Build ISO
+        run: ./build/build-iso.sh
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rebuilttux2-iso
+          path: '*.iso'
