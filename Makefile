@@ -1,19 +1,23 @@
-# RebuiltTux2 Build System
-
+CC=gcc
 ASM=nasm
-ISO_DIR=iso
-BOOT_DIR=bootloader
+LD=ld
 
-all: $(ISO_DIR)/rebuilttux2.iso
+CFLAGS=-m32 -ffreestanding -fno-pie -fno-stack-protector -nostdlib
 
-boot.bin: $(BOOT_DIR)/boot.asm
-	$(ASM) -f bin $(BOOT_DIR)/boot.asm -o boot.bin
+KERNEL=kernel.bin
 
-$(ISO_DIR)/rebuilttux2.iso: boot.bin
-	@echo "ISO generation placeholder"
-	@echo "Add ISO tools (xorriso/grub-mkrescue) when kernel is ready"
+all: $(KERNEL)
+
+boot.o: kernel/arch/x86/boot.asm
+	$(ASM) -f elf32 kernel/arch/x86/boot.asm -o boot.o
+
+kernel.o: kernel/kernel.c
+	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
+
+$(KERNEL): boot.o kernel.o
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $(KERNEL) boot.o kernel.o
 
 clean:
-	rm -f boot.bin $(ISO_DIR)/*.iso
+	rm -f *.o $(KERNEL)
 
 .PHONY: all clean
