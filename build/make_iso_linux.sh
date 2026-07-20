@@ -59,7 +59,17 @@ if [ -z "$KERNEL_PATH" ] || [ ! -f "$KERNEL_PATH" ]; then
 fi
 
 echo "Using kernel: $KERNEL_PATH"
-cp -v "$KERNEL_PATH" "$WORK_ISO_DIR/boot/vmlinuz"
+
+# Only copy if source and destination are different files
+DEST_KERNEL="$WORK_ISO_DIR/boot/vmlinuz"
+KERNEL_REALPATH="$(cd "$(dirname "$KERNEL_PATH")" && pwd -P)/$(basename "$KERNEL_PATH")"
+DEST_REALPATH="$(cd "$(dirname "$DEST_KERNEL")" && pwd -P)/$(basename "$DEST_KERNEL")"
+
+if [ "$KERNEL_REALPATH" != "$DEST_REALPATH" ]; then
+  cp -v "$KERNEL_PATH" "$DEST_KERNEL"
+else
+  echo "Kernel already at destination, skipping copy"
+fi
 
 # Optionally copy helper tools from host into tools/ (best-effort)
 if [ "$COPY_TOOLS" = true ]; then
