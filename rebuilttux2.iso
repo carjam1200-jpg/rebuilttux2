@@ -1,0 +1,5 @@
+This is a placeholder ISO file for RebuiltTux 2.
+
+It is NOT bootable. Use build/build-iso.sh on a Linux host with grub-mkrescue and a kernel at build/work/iso/boot/vmlinuz to create a real ISO.
+
+Replace this file with the generated ISO when you have built it.

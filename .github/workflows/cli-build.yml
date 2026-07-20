@@ -1,0 +1,90 @@
+name: CLI Build ISO
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_url:
+        description: 'Optional URL to a kernel image (vmlinuz) to include in ISO'
+        required: false
+        default: ''
+      test_qemu:
+        description: 'Run QEMU to test ISO after build (true/false)'
+        required: false
+        default: 'false'
+      include_tools:
+        description: 'Copy helper host tools into the initramfs (true/false)'
+        required: false
+        default: 'true'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xorriso grub-pc-bin grub-efi-amd64-bin grub-common debootstrap \
+            parted gdisk cryptsetup lvm2 dosfstools e2fsprogs btrfs-progs \
+            qemu-system-x86 curl wget
+
+      - name: Prepare work directories
+        run: |
+          mkdir -p build/work/iso/boot tools
+
+      - name: Fetch kernel (if provided) or use runner kernel
+        id: kernel
+        run: |
+          set -e
+          KERNEL_TARGET=build/work/iso/boot/vmlinuz
+          if [ -n "${{ github.event.inputs.kernel_url }}" ]; then
+            echo "Downloading kernel from ${{ github.event.inputs.kernel_url }}"
+            curl -fsSL -o "$KERNEL_TARGET" "${{ github.event.inputs.kernel_url }}"
+          else
+            # try common kernel paths
+            if [ -f /boot/vmlinuz-$(uname -r) ]; then
+              cp -v /boot/vmlinuz-$(uname -r) "$KERNEL_TARGET"
+            elif [ -f /boot/vmlinuz ]; then
+              cp -v /boot/vmlinuz "$KERNEL_TARGET"
+            else
+              echo "No kernel found on runner and no kernel_url supplied." >&2
+              exit 1
+            fi
+          fi
+          echo "kernel_path=$KERNEL_TARGET" >> $GITHUB_OUTPUT
+
+      - name: Optionally gather helper tools
+        if: ${{ github.event.inputs.include_tools == 'true' }}
+        run: |
+          echo "Copying helper tools from runner into tools/ (best-effort)"
+          TOOLS=(parted sgdisk mkfs.vfat mkfs.ext4 mkfs.btrfs cryptsetup pvcreate vgcreate lvcreate debootstrap grub-install grub-mkconfig blkid lsblk)
+          for t in "${TOOLS[@]}"; do
+            if command -v "$t" >/dev/null 2>&1; then
+              src="$(command -v $t)"
+              echo "Copying $t from $src"
+              cp -v "$src" tools/ || true
+            else
+              echo "Tool not found: $t"
+            fi
+          done
+
+      - name: Make build scripts executable
+        run: |
+          chmod +x build/build-iso.sh
+          chmod +x build/make_iso_linux.sh || true
+
+      - name: Run build helper
+        run: |
+          # Run the repo's helper to assemble initramfs and build the ISO
+          sudo ./build/make_iso_linux.sh --kernel "${{ steps.kernel.outputs.kernel_path }}" ${ { github.event.inputs.test_qemu == 'true' && echo '--test-qemu' || echo '' } }
+        shell: bash
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rebuilttux2-iso
+          path: rebuilttux2.iso

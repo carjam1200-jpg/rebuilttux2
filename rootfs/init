@@ -1,0 +1,60 @@
+#!/bin/sh
+# RebuiltTux init: detect installed system and run installer if needed
+
+# Mount pseudo-filesystems
+mount -t proc proc /proc 2>/dev/null || true
+mount -t sysfs sysfs /sys 2>/dev/null || true
+mount -t devtmpfs none /dev 2>/dev/null || true
+
+echo "Welcome to RebuiltTux minimal init"
+
+# Helper: try to find an installed root by scanning common first partitions
+find_installed_root() {
+  TARGETS="/dev/sd?1 /dev/nvme*n1p1 /dev/mmcblk?p1"
+  for pattern in $TARGETS; do
+    for dev in $pattern; do
+      [ -b "$dev" ] || continue
+      mkdir -p /mnt/target
+      if mount -o ro "$dev" /mnt/target 2>/dev/null; then
+        if [ -f /mnt/target/etc/rebuilttux-installed ]; then
+          echo "$dev"
+          umount /mnt/target || true
+          return 0
+        fi
+        umount /mnt/target || true
+      fi
+    done
+  done
+  return 1
+}
+
+echo "Detecting installed system..."
+INSTALLED_DEV=$(find_installed_root 2>/dev/null || true)
+
+if [ -n "$INSTALLED_DEV" ]; then
+  echo "Found installed system on $INSTALLED_DEV. Switching to installed root..."
+  mkdir -p /mnt/target
+  mount "$INSTALLED_DEV" /mnt/target || true
+  # Bind necessary pseudo-files and chroot to run the installed init
+  mount --bind /proc /mnt/target/proc 2>/dev/null || true
+  mount --bind /sys /mnt/target/sys 2>/dev/null || true
+  mount --bind /dev /mnt/target/dev 2>/dev/null || true
+  if [ -x /mnt/target/sbin/init ]; then
+    exec chroot /mnt/target /sbin/init
+  else
+    exec chroot /mnt/target /bin/sh
+  fi
+else
+  echo "No installed system found. Launching installer."
+  if [ -x /installer/installer.sh ]; then
+    exec /installer/installer.sh
+  fi
+fi
+
+# Fallback: interactive shell
+echo "Falling back to live shell."
+if [ -x /bin/busybox ]; then
+  exec /bin/busybox sh
+else
+  exec /bin/sh || exec sh
+fi
